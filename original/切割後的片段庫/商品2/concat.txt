@@ -1,0 +1,7 @@
+file 'C:/VideoAutoCleaner/切割後的片段庫/商品2/clip_010.mp4'
+file 'C:/VideoAutoCleaner/切割後的片段庫/商品2/clip_006.mp4'
+file 'C:/VideoAutoCleaner/切割後的片段庫/商品2/clip_005.mp4'
+file 'C:/VideoAutoCleaner/切割後的片段庫/商品2/clip_002.mp4'
+file 'C:/VideoAutoCleaner/切割後的片段庫/商品2/clip_003.mp4'
+file 'C:/VideoAutoCleaner/切割後的片段庫/商品2/clip_011.mp4'
+file 'C:/VideoAutoCleaner/切割後的片段庫/商品2/clip_008.mp4'

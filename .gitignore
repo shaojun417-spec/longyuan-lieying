@@ -1,38 +1,42 @@
-# Build outputs
-dist/
-build/
-*.exe
-*.dmg
-*.AppImage
-
-# Node modules
+# 編譯輸出
 node_modules/
-.pnp
-.pnp.js
+dist/
+dist-electron/
+release/
 
-# Models (large files)
-models/*.gguf
-models/piper/
-models/qwen/
-
-# Logs
-logs/
+# Electron 編譯檔案
 *.log
-npm-debug.log*
+*.tmp
+*.bak
 
-# OS
-.DS_Store
-Thumbs.db
-
-# IDE
+# 開發工具
 .vscode/
 .idea/
+*.swp
+.DS_Store
 
-# Environment
+# 模型檔案（太大，不放 git）
+electron/models/*.gguf
+electron/models/*.onnx
+userData/models/
+
+# 使用者資料
+userData/
+*.db
+*.sqlite
+
+# 環境變數
 .env
 .env.local
+.env.production
 
-# Temporary
-tmp/
-temp/
+# 測試
+coverage/
+.nyc_output/
+
+# 快取
 .cache/
+.parcel-cache/
+
+# Electron Builder
+build/

@@ -1,152 +1,88 @@
-# 龍淵裂影
+# 龍淵裂影 🐉
 
-> 本地 AI 短影音創作工具 - 全自動生成台灣口播文案 + 口音配音 + 智能混剪
+> 本地 AI 短影音創作工具 - 全自動生成台灣口播文案 + 台語配音 + 智能混剪
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+## ✨ 功能特色
 
----
+- 🤖 **本地 AI 模型**：完全離線運作，保護隱私
+- 🎤 **台灣口音配音**：支援國語、台語等多種口音
+- ✍️ **AI 自動寫稿**：一鍵生成符合台灣文化的口播文案
+- 🎬 **智能混剪**：自動配字幕、轉場、BGM
 
-## 🎯 這是什麼？
+## 🛠️ 技術架構
 
-**龍淵裂影**是一套讓你「只需要上傳商品影片，AI 幫你自動做好一切」的短影音創作工具。
+- **前端**：Electron + React + TypeScript + Tailwind CSS
+- **AI 模型**：Qwen2.5 (LLM) + Piper TTS (語音合成)
+- **硬體偵測**：自動推薦適合的模型
+- **打包工具**：Vite + electron-builder
 
-上傳一支 15 秒以上的商品展示影片，選擇背景音樂，點一下，**龍淵裂影**就會幫你：
+## 📦 安裝步驟
 
-- ✂️ **智能鏡頭切割** - 自動找出精彩鏡頭段落
-- 🤖 **AI 文案生成** - 本地 LLM 自動生成台灣口語化文案（不需要 API key）
-- 🗣️ **本地配音** - Windows 內建語音 + Piper 神經網路，5+ 種音色可選
-- 🎵 **自動混剪** - 抽幀加幀去除影片指紋，輸出多支原創短片
-- 📦 **直接輸出** - 馬上可以發佈到 TikTok / Instagram Reels / YouTube Shorts
+```bash
+# 1. 克隆專案
+git clone https://github.com/shaojun417/longyuan-lieying.git
+cd longyuan-lieying
 
-**100% 本地運行，不需要網路，不需要 API key，完全免費。**
+# 2. 安裝依賴
+npm install
 
----
+# 3. 開發模式
+npm run dev
 
-## 🚀 快速開始
-
-### 安裝需求
-
-- Windows 10/11
-- RAM 8GB 以上（建議 16GB，可以跑更強的模型）
-- 硬碟空間 5GB 以上（放 AI 模型）
-
-### 安裝步驟
-
-1. 下載最新版本
-2. 解壓縮到任意資料夾
-3. 執行 `龍淵裂影.exe`
-4. 第一次啟動時，AI 模型會自動下載（大約 2-5 分鐘）
-5. 完成！開始創作
-
----
-
-## 📖 使用方式
-
-### 基本流程
-
-```
-1. 啟動軟體
-2. 點「新增專案」
-3. 填入商品資訊（產品名、功效、受眾）
-4. 上傳商品展示影片（建議 1-5 支，每支 15 秒以上）
-5. 選擇背景音樂（可使用內建音樂庫）
-6. 選擇配音音色（女聲 / 男聲可選）
-7. 點「生成」，等待 AI 完成
-8. 取得 3-5 支原創短影音影片
+# 4. 打包成 .exe
+npm run build
 ```
 
-### 口播文案設定
+## 🖥️ 系統需求
 
-| 欄位 | 說明 |
-|------|------|
-| 產品名稱 | 商品名稱 |
-| 功效 / 重點 | 這個商品的重點功效 |
-| 目標受眾 | 這則內容想說給誰聽 |
-| 使用情境 | 什麼情境下會用到這個商品 |
-
----
-
-## 🎨 功能特色
-
-### AI 文案生成（本地 LLM）
-
-- 使用 **Qwen2.5-3B/7B** 本地語言模型
-- 自動生成台灣口語化文案
-- 風格：「分享」而非「硬廣」
-- 每支影片文案獨特，自動避免同質化
-- 支援一鍵重寫 / 換配音 / 全部重做
-
-### 本地配音（TTS）
-
-| 音色 | 語言 | 風格 |
-|------|------|------|
-| 台灣女聲 - 標準 | 🇹🇼 中文 | 清新自然 |
-| 台灣女聲 - 成熟 | 🇹🇼 中文 | 專業可信 |
-| 台灣男聲 - 標準 | 🇹🇼 中文 | 沉穩有力 |
-| AI 女聲 - 甜美 | 🇨🇳 中文 | 甜美可愛 |
-| AI 男聲 - 沉穩 | 🇨🇳 中文 | 知識型男 |
-
-### 智能混剪
-
-- **鏡頭智能切割** - FFmpeg 場景偵測
-- **影片指紋去除** - 抽幀 + 加幀 + 微調色彩 + 輕微縮放
-- **自動生成多支** - 一次輸出 3-5 支不同短片
-- **目標長度隨機** - 每支 16-30 秒，不重複
-
----
+- **作業系統**：Windows 10/11（macOS、Linux 開發中）
+- **RAM**：建議 8GB 以上
+- **硬碟空間**：需要 5GB+ 給 AI 模型
+- **網路**：首次啟動需要下載 AI 模型
 
 ## 📂 專案結構
 
 ```
-龍淵裂影/
-├── main/                    # main 分支：原版腳本
-│   ├── auto_remix.py       # AI 自動混剪腳本
-│   ├── 全能混剪.ps1        # PowerShell 混剪腳本
-│   ├── 智能切割混剪.ps1    # 智能鏡頭切割
-│   ├── extract_bgm.ps1     # BGM 擷取腳本
-│   └── 下載剪映BGM.bat     # 下載工具
-│
-└── electron/                # electron 分支：Electron App 版（開發中）
-    ├── src/                 # 原始碼
-    ├── models/              # AI 模型
-    └── public/              # 靜態資源
+electron/
+├── src/
+│   ├── main/              # Electron 主程序
+│   │   ├── index.ts       # 主入口
+│   │   ├── hardware-detect.ts   # 硬體偵測
+│   │   ├── model-manager.ts     # 模型管理
+│   │   └── first-run.ts         # 首次啟動流程
+│   ├── preload/           # 預載腳本（IPC 橋接）
+│   │   └── index.ts
+│   └── renderer/          # React UI
+│       ├── App.tsx
+│       ├── pages/
+│       │   └── FirstRunScreen.tsx
+│       └── components/
+├── resources/             # 圖片、圖標、BGM
+└── models/                # AI 模型（不下載到 git）
 ```
 
----
+## 🎯 開發進度
 
-## 🛠️ 技術架構
+查看 [PLAN.md](PLAN.md) 了解完整的開發計劃。
 
-### 核心技術
+### ✅ 已完成
+- [x] 專案初始化
+- [x] Electron + React + TypeScript 架構
+- [x] 硬體偵測模組
+- [x] 模型管理器
+- [x] 首次啟動流程
+- [x] 首次啟動 UI
 
-| 層面 | 技術 |
-|------|------|
-| UI | Electron + React + TypeScript |
-| AI 文案 | Qwen2.5-3B/7B-Instruct（本機 LLM）|
-| 配音 | Windows TTS + Piper TTS（本機）|
-| 影片處理 | FFmpeg |
-| 模型管理 | node-llama-cpp |
+### 🚧 開發中
+- [ ] AI 文案生成器
+- [ ] TTS 語音合成
+- [ ] 影片素材管理
+- [ ] 混剪引擎
 
-詳細技術架構請見 [PLAN.md](PLAN.md)
+## 📄 授權
 
----
+MIT License - 詳見 [LICENSE](LICENSE) 檔案
 
-## 📝 License
+## 👨‍💻 作者
 
-本專案採用 MIT License。
-
-> ⚠️ 這是你自己開發的專案，你擁有完全的版權。
-
----
-
-## 🤝 聯絡
-
-- GitHub: [shaojun417](https://github.com/shaojun417)
-- Email: （待填寫）
-
----
-
-## 📌 備註
-
-- 這個專案目前仍在積極開發中
-- 最新功能進度請關注 GitHub Releases
-- 歡迎提出 Issue 和 Pull Request
+[shaojun417](https://github.com/shaojun417)
