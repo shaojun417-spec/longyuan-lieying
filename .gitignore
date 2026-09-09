@@ -1,0 +1,38 @@
+# Build outputs
+dist/
+build/
+*.exe
+*.dmg
+*.AppImage
+
+# Node modules
+node_modules/
+.pnp
+.pnp.js
+
+# Models (large files)
+models/*.gguf
+models/piper/
+models/qwen/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.local
+
+# Temporary
+tmp/
+temp/
+.cache/
