@@ -109,8 +109,15 @@ function registerIpcHandlers(): void {
 }
 
 // 應用程式準備好時
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   log.info('應用程式準備就緒');
+  
+  // 啟動時清理不完整的殘留模型檔（避免下次誤判）
+  const cleaned = await modelManager.cleanupIncompleteModels();
+  if (cleaned > 0) {
+    log.info(`已清理 ${cleaned} 個不完整的殘留模型檔`);
+  }
+  
   createWindow();
 
   // macOS 特殊處理

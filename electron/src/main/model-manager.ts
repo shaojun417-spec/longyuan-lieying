@@ -69,11 +69,30 @@ export class ModelManager {
   }
 
   /**
-   * 檢查模型是否已下載
+   * 檢查模型是否已下載完成
+   * 規則：檔案存在 + 大小 >= 預期的 95%（避免把殘留檔當成已下載）
    */
   isModelDownloaded(modelName: string): boolean {
+    const modelInfo = MODEL_URLS[modelName as keyof typeof MODEL_URLS];
+    if (!modelInfo) return false;
+    return this.isModelFileComplete(modelName, modelInfo.size);
+  }
+
+  /**
+   * 檢查模型檔案是否完整（存在 + 大小達標）
+   * 內部 helper：供 isModelDownloaded / getAllModelsStatus 共用
+   */
+  private isModelFileComplete(modelName: string, expectedSize: number): boolean {
     const modelPath = this.getModelPath(modelName);
-    return fs.existsSync(modelPath);
+    if (!fs.existsSync(modelPath)) return false;
+    try {
+      const stats = fs.statSync(modelPath);
+      // 用 95% 容忍度：避免網路下載時 server 報告 size 有微小誤差
+      return stats.size >= expectedSize * 0.95;
+    } catch (err) {
+      log.warn(`檢查模型大小失敗: ${modelName}`, err);
+      return false;
+    }
   }
 
   /**
@@ -97,14 +116,14 @@ export class ModelManager {
     const models: ModelInfo[] = [];
 
     for (const [modelName, info] of Object.entries(MODEL_URLS)) {
-      const modelPath = this.getModelPath(modelName);
-      const downloaded = fs.existsSync(modelPath);
+      // 使用完整檢查邏輯：檔案存在 + 大小達標
+      const downloaded = this.isModelFileComplete(modelName, info.size);
       
       models.push({
         name: modelName,
         size: info.size,
         downloaded,
-        path: modelPath,
+        path: this.getModelPath(modelName),
         url: info.url,
       });
     }
@@ -253,19 +272,46 @@ export class ModelManager {
 
   /**
    * 取得已下載模型的總大小
+   * 只計算「完整下載」的模型（避免殘留檔污染數字）
    */
   async getTotalDownloadedSize(): Promise<number> {
     let totalSize = 0;
     
-    for (const modelName of Object.keys(MODEL_URLS)) {
-      const modelPath = this.getModelPath(modelName);
-      if (fs.existsSync(modelPath)) {
-        const stats = fs.statSync(modelPath);
+    for (const [modelName, info] of Object.entries(MODEL_URLS)) {
+      if (this.isModelFileComplete(modelName, info.size)) {
+        const stats = fs.statSync(this.getModelPath(modelName));
         totalSize += stats.size;
       }
     }
 
     return totalSize;
+  }
+
+  /**
+   * 清理不完整的殘留檔（檔案存在但大小未達標）
+   * 啟動時呼叫一次，避免下次誤判為「已下載」
+   */
+  async cleanupIncompleteModels(): Promise<number> {
+    await this.ensureModelsDir();
+    let cleaned = 0;
+    
+    for (const [modelName, info] of Object.entries(MODEL_URLS)) {
+      const modelPath = this.getModelPath(modelName);
+      if (!fs.existsSync(modelPath)) continue;
+      
+      const isComplete = this.isModelFileComplete(modelName, info.size);
+      if (!isComplete) {
+        try {
+          fs.unlinkSync(modelPath);
+          log.warn(`已清理殘留檔: ${modelName} (預期 ${info.size} bytes)`);
+          cleaned++;
+        } catch (err) {
+          log.error(`清理殘留檔失敗: ${modelName}`, err);
+        }
+      }
+    }
+    
+    return cleaned;
   }
 }
 

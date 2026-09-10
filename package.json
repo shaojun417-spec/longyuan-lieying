@@ -6,10 +6,12 @@
   "author": "shaojun417",
   "license": "MIT",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build && electron-builder",
+    "dev": "npm run build:all && electron .",
+    "dev:live": "vite",
+    "build": "npm run build:all",
+    "build:all": "vite build",
     "preview": "vite preview",
-    "electron:dev": "vite",
+    "electron:dev": "npm run build:all && electron .",
     "electron:build": "vite build && electron-builder"
   },
   "dependencies": {

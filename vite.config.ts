@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import electron from 'vite-plugin-electron';
-import renderer from 'vite-plugin-electron-renderer';
 import path from 'path';
 
 export default defineConfig({
@@ -20,7 +19,14 @@ export default defineConfig({
           build: {
             outDir: 'dist-electron/main',
             rollupOptions: {
-              external: ['electron', 'node-llama-cpp', 'systeminformation'],
+              // 強制 external,確保 main 用的是 Node 版的 electron-log,
+              // 不會被 vite-plugin-electron-renderer 替換成 renderer 版
+              external: [
+                'electron',
+                'electron-log',
+                'node-llama-cpp',
+                'systeminformation',
+              ],
             },
           },
         },
@@ -37,7 +43,6 @@ export default defineConfig({
         },
       },
     ]),
-    renderer(),
   ],
   resolve: {
     alias: {
@@ -47,7 +52,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: '../../dist', // 輸出到根目錄的 dist
+    outDir: path.resolve(__dirname, 'dist'),
     emptyOutDir: true,
   },
 });
