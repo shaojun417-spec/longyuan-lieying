@@ -72,12 +72,24 @@ electron/
 - [x] 模型管理器
 - [x] 首次啟動流程
 - [x] 首次啟動 UI
+- [x] **環境驗證**（npm install / vite build / Electron 三進程啟動）
 
 ### 🚧 開發中
 - [ ] AI 文案生成器
 - [ ] TTS 語音合成
 - [ ] 影片素材管理
 - [ ] 混剪引擎
+
+## 🔧 開發指令速查
+
+| 指令 | 用途 |
+|------|------|
+| `npm install` | 安裝依賴（含 Electron 二進位檔） |
+| `npm run dev` 或 `npx vite` | 啟動開發模式（熱重載） |
+| `npx tsc --noEmit` | 型別檢查（renderer） |
+| `npx tsc --noEmit -p tsconfig.node.json` | 型別檢查（main + preload） |
+| `npm run build` | 打包成 production 版本 |
+| `npm run electron:build` | 打包成 .exe |
 
 ## 📄 授權
 
