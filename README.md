@@ -49,15 +49,23 @@ electron/
 │   │   ├── index.ts       # 主入口
 │   │   ├── hardware-detect.ts   # 硬體偵測
 │   │   ├── model-manager.ts     # 模型管理
-│   │   └── first-run.ts         # 首次啟動流程
+│   │   ├── first-run.ts         # 首次啟動流程
+│   │   └── narration/           # 文案生成（階段 2）
+│   │       ├── prompt-templates.ts   # Prompt 範本
+│   │       ├── similarity-check.ts   # 不相似性檢查
+│   │       ├── llm-engine.ts         # node-llama-cpp 封裝
+│   │       ├── script-writer.ts      # 主邏輯
+│   │       └── script-handlers.ts     # IPC handlers
 │   ├── preload/           # 預載腳本（IPC 橋接）
 │   │   └── index.ts
-│   └── renderer/          # React UI
-│       ├── App.tsx
-│       ├── pages/
-│       │   └── FirstRunScreen.tsx
-│       └── components/
-├── resources/             # 圖片、圖標、BGM
+│   ├── renderer/          # React UI
+│   │   ├── App.tsx
+│   │   └── pages/
+│   │       ├── FirstRunScreen.tsx
+│   │       └── NarrationScreen.tsx  # 文案生成 UI
+│   ├── shared/            # 共用型別
+│   │   └── types.ts
+│   └── resources/             # 圖片、圖標、BGM
 └── models/                # AI 模型（不下載到 git）
 ```
 
@@ -75,9 +83,15 @@ electron/
 - [x] **環境驗證**（npm install / vite build / Electron 三進程啟動）
 - [x] **修正 vite-plugin-electron-renderer 導致 electron-log 變成 renderer 版的 bug**
 - [x] **修正模型管理器：殘留檔（< 預期大小 95%）會被誤判為已下載的 bug**
+- [x] **AI 文案生成器**（LLM + 不相似性檢查 + React UI + IPC）
+  - 台灣口吻 prompt 範本（直接說話聊天風格）
+  - node-llama-cpp 單例 Lazy Loading
+  - 簡轉繁字典（180+ 字）+ Levenshtein 不相似性檢查
+  - 自動重試（最多 3 次，太相似就重生）
+  - 5 種不同切入點（痛點/故事/反轉/情境/數字）
 
 ### 🚧 開發中
-- [ ] AI 文案生成器
+- [ ] AI 文案生成器（E2E 實測，需下載 4.9GB 模型）
 - [ ] TTS 語音合成
 - [ ] 影片素材管理
 - [ ] 混剪引擎
