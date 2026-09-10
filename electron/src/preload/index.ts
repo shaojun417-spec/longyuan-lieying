@@ -4,6 +4,10 @@
  */
 
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
+import type {
+  GenerateScriptsRequest,
+  GenerateScriptsResponse,
+} from '../shared/types';
 
 // 定義 API 型別
 export interface ElectronAPI {
@@ -13,14 +17,23 @@ export interface ElectronAPI {
     onProgress: (callback: (state: any) => void) => void;
     retryDownload: (modelName: string) => Promise<boolean>;
   };
-  
+
   // 模型管理
   model: {
     getStatus: () => Promise<any[]>;
     getPath: () => Promise<string>;
     isDownloaded: (modelName: string) => Promise<boolean>;
   };
-  
+
+  // 文案生成
+  script: {
+    generate: (request: GenerateScriptsRequest) => Promise<GenerateScriptsResponse>;
+    cancel: () => Promise<boolean>;
+    dispose: () => Promise<boolean>;
+    isLoaded: () => Promise<boolean>;
+    onProgress: (callback: (progress: any) => void) => void;
+  };
+
   // 應用程式
   app: {
     getInfo: () => Promise<{
@@ -41,7 +54,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
         callback(state);
       });
     },
-    retryDownload: (modelName: string) => 
+    retryDownload: (modelName: string) =>
       ipcRenderer.invoke('first-run:retry-download', modelName),
   },
 
@@ -49,8 +62,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
   model: {
     getStatus: () => ipcRenderer.invoke('model:get-status'),
     getPath: () => ipcRenderer.invoke('model:get-path'),
-    isDownloaded: (modelName: string) => 
+    isDownloaded: (modelName: string) =>
       ipcRenderer.invoke('model:is-downloaded', modelName),
+  },
+
+  // 文案生成
+  script: {
+    generate: (request: GenerateScriptsRequest) =>
+      ipcRenderer.invoke('script:generate', request),
+    cancel: () => ipcRenderer.invoke('script:cancel'),
+    dispose: () => ipcRenderer.invoke('script:dispose'),
+    isLoaded: () => ipcRenderer.invoke('script:is-loaded'),
+    onProgress: (callback: (progress: any) => void) => {
+      ipcRenderer.on('script:progress', (_event: IpcRendererEvent, progress: any) => {
+        callback(progress);
+      });
+    },
   },
 
   // 應用程式

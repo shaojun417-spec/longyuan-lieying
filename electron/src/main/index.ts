@@ -7,6 +7,7 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
 import log from 'electron-log';
 import { registerFirstRunIpcHandlers } from './first-run';
+import { registerScriptHandlers } from './narration/script-handlers';
 import { modelManager } from './model-manager';
 
 // 設定日誌
@@ -82,6 +83,9 @@ function registerIpcHandlers(): void {
 
   // 首次啟動相關
   registerFirstRunIpcHandlers();
+
+  // 文案生成相關
+  registerScriptHandlers();
 
   // 模型管理相關
   ipcMain.handle('model:get-status', async () => {
