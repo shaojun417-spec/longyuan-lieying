@@ -6,9 +6,11 @@
     "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
     "strict": true,
+    "jsx": "react-jsx",
     "outDir": "dist-electron",
     "declaration": true,
     "declarationMap": true
   },
-  "include": ["vite.config.ts", "electron/**/*"]
+  "include": ["vite.config.ts", "electron/src/main/**/*", "electron/src/preload/**/*"],
+  "exclude": ["electron/src/renderer/**/*"]
 }

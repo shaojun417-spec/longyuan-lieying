@@ -3,7 +3,6 @@ import FirstRunScreen from './pages/FirstRunScreen';
 
 function App() {
   const [isFirstRun, setIsFirstRun] = useState<boolean | null>(null);
-  const [appReady, setAppReady] = useState(false);
 
   useEffect(() => {
     // 檢查是否首次啟動
@@ -12,7 +11,7 @@ function App() {
       // 這裡簡單設為 true，正式版需要讀取設定檔
       setIsFirstRun(true);
     };
-    
+
     checkFirstRun();
   }, []);
 
@@ -38,7 +37,7 @@ function App() {
       <div className="p-8">
         <h1 className="text-3xl font-bold text-orange-500 mb-4">🐉 龍淵裂影</h1>
         <p className="text-slate-400">本地 AI 短影音創作工具</p>
-        
+
         <div className="mt-8 p-6 bg-slate-800 rounded-lg">
           <h2 className="text-xl font-semibold mb-4">歡迎使用！</h2>
           <p className="text-slate-300">

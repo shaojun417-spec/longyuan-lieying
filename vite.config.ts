@@ -5,6 +5,9 @@ import renderer from 'vite-plugin-electron-renderer';
 import path from 'path';
 
 export default defineConfig({
+  // Renderer 的根目錄
+  root: path.resolve(__dirname, 'electron/src/renderer'),
+  base: './', // 打包後的相對路徑（讓 Electron 用 file:// 載入）
   plugins: [
     react(),
     electron([
@@ -44,6 +47,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: 'dist',
+    outDir: '../../dist', // 輸出到根目錄的 dist
+    emptyOutDir: true,
   },
 });

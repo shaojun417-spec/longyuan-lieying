@@ -5,7 +5,7 @@
 
 import { BrowserWindow, ipcMain } from 'electron';
 import log from 'electron-log';
-import { detectHardware, checkMinimumRequirements, ModelRecommendation } from './hardware-detect';
+import { detectHardware, checkMinimumRequirements, recommendModel, ModelRecommendation } from './hardware-detect';
 import { modelManager, ModelInfo, DownloadProgress } from './model-manager';
 
 export interface FirstRunState {
@@ -60,13 +60,14 @@ export class FirstRunManager {
       state.hardwareChecked = true;
 
       // 根據硬體推薦模型
-      state.recommendedModel = require('./hardware-detect').recommendModel(hardware);
+      const recommendation = recommendModel(hardware);
+      state.recommendedModel = recommendation;
 
       log.info('硬體偵測完成:', state.hardwareInfo);
       log.info('推薦模型:', state.recommendedModel);
 
       // 步驟 2：檢查模型是否已下載
-      const isDownloaded = modelManager.isModelDownloaded(state.recommendedModel.recommendedModel);
+      const isDownloaded = modelManager.isModelDownloaded(recommendation.recommendedModel);
 
       if (isDownloaded) {
         // 模型已存在，跳過下載
@@ -80,7 +81,7 @@ export class FirstRunManager {
         log.info('開始下載模型...');
 
         const downloadSuccess = await modelManager.downloadModel(
-          state.recommendedModel.recommendedModel,
+          recommendation.recommendedModel,
           (progress: DownloadProgress) => {
             state.progress = progress.percentage;
             this.sendProgress(state);

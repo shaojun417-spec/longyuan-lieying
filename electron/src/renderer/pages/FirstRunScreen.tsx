@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { create } from 'zustand';
-import type { ElectronAPI } from '../../preload/index';
 
 // 首次啟動狀態
 interface FirstRunState {
@@ -38,7 +37,7 @@ export default function FirstRunScreen({ onComplete }: { onComplete: () => void 
     setIsStarting(true);
     
     // 監聽進度更新
-    window.electronAPI.firstRun.onProgress((newState) => {
+    window.electronAPI.firstRun.onProgress((newState: FirstRunState) => {
       useFirstRunStore.setState(newState);
     });
 
