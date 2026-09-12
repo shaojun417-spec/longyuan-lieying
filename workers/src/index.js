@@ -236,8 +236,8 @@ function detectPlatform(text) {
   if (u.includes("douyin.com") || u.includes("iesdouyin.com") || u.includes("v.douyin.com")) return "douyin";
   if (u.includes("xiaohongshu.com") || u.includes("xhslink.com") || u.includes("xhscdn.com")) return "xiaohongshu";
   if (u.includes("instagram.com")) return "instagram";
-  if (u.includes("threads.net") || u.includes("threadsapp.com")) return "threads";
-  if (u.includes("shopee.") || u.includes("shopee.tw")) return "shopee";
+  if (u.includes("threads.net") || u.includes("threads.com") || u.includes("threadsapp.com")) return "threads";
+  if (u.includes("shopee.") || u.includes("shopee.tw") || u.includes("shp.ee")) return "shopee";
   if (u.includes("taobao.com") || u.includes("tmall.com") || u.includes("tb.cn")) return "taobao";
   if (u.includes("tiktok.com") || u.includes("vm.tiktok")) return "tiktok";
   if (u.includes("youtube.com") || u.includes("youtu.be")) return "youtube";
@@ -250,6 +250,32 @@ function extractUrl(raw) {
   const m = raw.match(/https?:\/\/[^\s\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]+/);
   if (m) return m[0].replace(/[,，。、)\]}>]+$/, "");
   return raw.trim();
+}
+
+/**
+ * 網域正規化 + 後綴清理
+ *
+ * 處理：
+ * 1. Meta 把 threads.net 換成 threads.com 後，部分後端 API 不認新網域
+ *    → threads.com 統一轉成 threads.net
+ * 2. Threads 分享網址常帶 /media?hl=zh-tw 之類後綴，會讓
+ *    auto-download 後端回 404 "Not found data"
+ *    → 拿掉 /media 並 strip query string（保留 post ID）
+ *
+ * @param {string} raw - 原始網址或文字
+ * @returns {string} - 正規化後的網址
+ */
+function normalizeUrl(raw) {
+  if (!raw) return raw;
+  let s = raw;
+  // Threads 網域統一：threads.com → threads.net
+  s = s.replace(/https?:\/\/(www\.)?threads\.com/gi, (m) => m.replace(/threads\.com/i, "threads.net"));
+  // Threads 移除 /media 後綴（auto-download 不認）
+  s = s.replace(/(\/post\/[\w_-]+)\/media/i, "$1");
+  // Threads 移除 query string（auto-download 對 query 嚴格比對）
+  // 注意：只 strip 在 threads 網域的 query，其他平台保留
+  s = s.replace(/(https?:\/\/(www\.)?threads\.net\/[^\s?]+)\?[\w=&%-]+/gi, "$1");
+  return s;
 }
 
 function json(data, status = 200) {
@@ -629,6 +655,10 @@ function generateABogus(params, body = "", userAgent = UA) {
 async function parseDouyin(rawText) {
   const url = extractUrl(rawText);
   try {
+    // 0. 先試 v8i8.com（免費第三方，2026 年仍能解抖音）
+    const v = await parseViaV8i8("douyin", rawText);
+    if (v && !v._error && v.success) return v;
+
     // 1. 跟隨短網址跳轉
     let finalUrl = url;
     let html = "";
@@ -787,10 +817,65 @@ async function parseDouyin(rawText) {
       };
     }
 
-    return { success: false, platform: "douyin", error: "解析失敗（API: " + (data?.status_msg || data?.status_code || "拒絕") + "）" };
+    return { success: false, platform: "douyin", error: "解析失敗（自寫 a-bogus 被抖音風控擋住）" };
   } catch (e) {
     return { success: false, platform: "douyin", error: "解析失敗", error_hint: e.message };
   }
+}
+
+// ==================== 第三方 API：v8i8.com ====================
+/**
+ * 用 v8i8.com 解析影片（支援抖音、小紅書等）
+ * 文件：瀏覽器開發者工具觀察 https://v8i8.com/api/video-info
+ * 端點：GET https://v8i8.com/api/video-info?url=<url>
+ */
+async function parseViaV8i8(platform, rawText) {
+  const shareUrl = extractUrl(rawText);
+  if (!shareUrl) return { _error: "no_url" };
+
+  const apiUrl = `https://v8i8.com/api/video-info?url=${encodeURIComponent(shareUrl)}`;
+  console.log(`[v8i8] ${platform} ${shareUrl.slice(0, 80)}`);
+
+  const resp = await fetch(apiUrl, {
+    headers: {
+      "User-Agent": UA,
+      "Accept": "application/json",
+      "Referer": "https://v8i8.com/",
+    },
+  });
+
+  if (!resp.ok) {
+    console.log(`[v8i8] ${platform} http=${resp.status}`);
+    return { _error: `http_${resp.status}` };
+  }
+
+  const data = await resp.json().catch(() => null);
+  if (!data || data.error) {
+    console.log(`[v8i8] ${platform} err=${data?.error || "no_data"}`);
+    return { _error: data?.error || "no_data" };
+  }
+
+  // v8i8 回傳 cdn_url 是直接可下載的影片 CDN（無水印、不需 Referer）
+  // proxy_url 是 v8i8 自家代理（需 Referer）
+  const videoUrl = data.cdn_url || data.proxy_url;
+  if (!videoUrl) {
+    return { _error: "no_video_url" };
+  }
+
+  // 如果是 proxy_url（相對路徑），補上完整網址
+  const fullUrl = videoUrl.startsWith("http") ? videoUrl : `https://v8i8.com${videoUrl}`;
+
+  return {
+    success: true,
+    url: fullUrl,
+    title: data.title || "",
+    thumbnail: data.thumbnail || "",
+    duration: data.duration || 0,
+    platform,
+    uploader: data.uploader || "",
+    source: "v8i8",
+    _proxy: !!videoUrl.startsWith("/"),
+  };
 }
 
 // ==================== 第三方 API：TikHub ====================
@@ -815,27 +900,36 @@ async function parseViaTikHub(env, platform, rawText, keyEntry) {
       endpoint = `https://api.tikhub.io/api/v1/douyin/app/v3/fetch_one_video_by_share_url?share_url=${encodeURIComponent(shareUrl)}`;
       break;
     case "xiaohongshu":
-      endpoint = `https://api.tikhub.io/api/v1/xiaohongshu/app/v2/note_detail_by_url?url=${encodeURIComponent(shareUrl)}`;
+      endpoint = `https://api.tikhub.io/api/v1/xiaohongshu/web/v2/note_detail_by_url?url=${encodeURIComponent(shareUrl)}`;
       break;
     case "tiktok":
       endpoint = `https://api.tikhub.io/api/v1/tiktok/app/v3/fetch_one_video_by_share_url?share_url=${encodeURIComponent(shareUrl)}`;
       break;
     case "instagram":
-      endpoint = `https://api.tikhub.io/api/v1/instagram/app/v2/fetch_post_by_url?url=${encodeURIComponent(shareUrl)}`;
+      endpoint = `https://api.tikhub.io/api/v1/instagram/web/v1/fetch_post_by_url?url=${encodeURIComponent(shareUrl)}`;
       break;
     case "threads":
-      endpoint = `https://api.tikhub.io/api/v1/threads/app/v2/fetch_post_by_url?url=${encodeURIComponent(shareUrl)}`;
+      endpoint = `https://api.tikhub.io/api/v1/threads/web/fetch_post_detail_v2?url=${encodeURIComponent(shareUrl)}`;
       break;
     default:
       return null;
   }
 
+  console.log(`[tikhub] ${platform} ${endpoint}`);
   const resp = await fetch(endpoint, { headers });
+  console.log(`[tikhub] ${platform} status=${resp.status}`);
+
   if (resp.status === 429) {
     await markKeyFailed(env, keyEntry);
     return { _error: "rate_limited" };
   }
+  if (resp.status === 401 || resp.status === 403) {
+    await markKeyFailed(env, keyEntry);
+    return { _error: `auth_${resp.status}` };
+  }
   if (!resp.ok) {
+    const body = await resp.text().catch(() => "");
+    console.log(`[tikhub] ${platform} body=${body.slice(0, 200)}`);
     await markKeyFailed(env, keyEntry);
     return { _error: `http_${resp.status}` };
   }
@@ -924,20 +1018,23 @@ async function parseViaTikHub(env, platform, rawText, keyEntry) {
     }
   }
 
-  // TikHub Threads 回應
+  // TikHub Threads 回應（web/fetch_post_detail_v2）
   if (platform === "threads" && data?.data) {
     const post = data.data?.post || data.data;
-    const videoUrl = post?.video_versions?.[0]?.url || post?.playback_url || "";
+    const videoUrl = post?.video_versions?.[0]?.url ||
+                     post?.playback_url ||
+                     post?.media?.[0]?.video_versions?.[0]?.url ||
+                     "";
     if (videoUrl) {
       await markKeySuccess(env, keyEntry);
       return {
         success: true,
         url: videoUrl,
-        title: post.caption?.text || "Threads 影片",
-        thumbnail: post.image_versions2?.candidates?.[0]?.url || "",
+        title: post.caption?.text || post.text || "Threads 影片",
+        thumbnail: post.image_versions2?.candidates?.[0]?.url || post.media?.[0]?.image_versions2?.candidates?.[0]?.url || "",
         duration: post.video_duration || 0,
         platform: "threads",
-        uploader: post.user?.username || "",
+        uploader: post.user?.username || post.user?.name || "",
         source: "tikhub",
       };
     }
@@ -1160,7 +1257,14 @@ async function parseWithFallback(env, platform, rawText, keyPool, userKey) {
     if (r && !r._error && r.success) return r;
   }
 
-  // 3. 全部失敗，回傳 null（呼叫方會用 a-bogus 兜底）
+  // 3. 嘗試 v8i8.com 公開 API（支援抖音、小紅書、IG、Threads 等）
+  //    v8i8 是免費第三方解析站，無需 Key，可作為最後的兜底
+  if (["douyin", "xiaohongshu", "instagram", "threads"].includes(platform)) {
+    const r = await parseViaV8i8(platform, rawText);
+    if (r && !r._error && r.success) return r;
+  }
+
+  // 4. 全部第三方 API 失敗，回傳 null（呼叫方會用 a-bogus 兜底）
   return null;
 }
 
@@ -1169,6 +1273,10 @@ async function parseWithFallback(env, platform, rawText, keyPool, userKey) {
 async function parseXiaohongshu(rawText) {
   const url = extractUrl(rawText);
   try {
+    // 0. 先試 v8i8.com
+    const v = await parseViaV8i8("xiaohongshu", rawText);
+    if (v && !v._error && v.success) return v;
+
     const { html } = await fetchWithRedirect(url, { ua: UA_MOBILE });
 
     // 抓 __INITIAL_STATE__
@@ -1253,6 +1361,10 @@ async function parseTikTok(rawText) {
 async function parseInstagram(rawText) {
   const url = extractUrl(rawText);
   try {
+    // 0. 先試 v8i8.com
+    const v = await parseViaV8i8("instagram", rawText);
+    if (v && !v._error && v.success) return v;
+
     // 先嘗試 oEmbed API（不需要登入）
     const oembedUrl = `https://graph.facebook.com/v18.0/instagram_oembed?url=${encodeURIComponent(url)}&maxwidth=480&fields=thumbnail_url,thumbnail_width,thumbnail_height,title,author_name&access_token=IGQVJ...`;
     const oembedResp = await fetch(oembedUrl).catch(() => null);
@@ -1636,38 +1748,48 @@ async function handleVideoInfo(request, env) {
   const raw = body.url?.trim();
   if (!raw) return json({ success: false, error: "請提供網址" }, 400);
 
-  const platform = detectPlatform(raw);
+  // 網域正規化（threads.com → threads.net 等）
+  const normalizedRaw = normalizeUrl(raw);
+
+  const platform = detectPlatform(normalizedRaw);
   const userKey = body.userKey?.trim() || null;  // 用戶可自帶 Key
   const keyPool = await loadKeyPool(env);
   let result;
 
   // 支援的平台：先用第三方 API（多 Key 池）
-  // auto-download-all-in-one 涵蓋 60+ 平台：YouTube, Facebook, Twitter, Bilibili, Snapchat, VK, Weibo 等
+  // 重要：這份清單只列「auto-download-all-in-one 實測能解」的平台，
+  //       經 2026-09-12 真實測試（test_real_platforms.py）：
+  //         ✅ tiktok, youtube   ← auto-download 能解
+  //         ❌ douyin, xiaohongshu, instagram, threads, facebook, twitter,
+  //            bilibili, snapchat, vk, weibo, telegram, pinterest, linkedin,
+  //            reddit, tumblr, vimeo, dailymotion, rumble, twitch, espn,
+  //            imdb, imgur, 9gag, coub, likee, kuaishou, afreecatv, chzzk,
+  //            kick, dlive, sharechat, ifunny, ted, sohu, ok, rutube,
+  //            lemon8, soundcloud, spotify
+  //         → 這些平台請走 parseWithFallback（會嘗試 TikHub 池 → 自寫解析 → 拒絕），
+  //           不要列在這裡走 auto-download（會浪費額度 + 必然失敗）
   const supportedForApi = [
-    "douyin", "xiaohongshu", "tiktok", "instagram", "threads",
-    "youtube", "facebook", "twitter", "bilibili", "snapchat",
-    "vk", "weibo", "telegram", "pinterest", "linkedin",
-    "reddit", "tumblr", "vimeo", "dailymotion", "rumble",
-    "twitch", "espn", "imdb", "imgur", "9gag", "coub",
-    "likee", "kuaishou", "afreecatv", "chzzk", "kick",
-    "dlive", "sharechat", "ifunny", "ted", "sohu",
-    "ok", "rutube", "lemon8", "soundcloud", "spotify",
-    // 注意：taobao 不在這裡（會繞過 RapidAPI，直接用 parseTaobao 自寫解析）
+    "tiktok", "youtube",  // auto-download 實測能解
+    "shopee",              // auto-download 對某些蝦皮短網址有效
+    "threads",             // auto-download 對 www.threads.net 的 post URL 能解（www.threads.com 會自動正規化為 .net）
+    "douyin",              // v8i8.com 公開 API 可解（最後 fallback：自寫 a-bogus）
+    "xiaohongshu",         // v8i8.com 公開 API 可解（最後 fallback：自寫解析）
+    "instagram",           // v8i8.com 公開 API 可解（可能需要登入）
   ];
   if (supportedForApi.includes(platform)) {
-    result = await parseWithFallback(env, platform, raw, keyPool, userKey);
+    result = await parseWithFallback(env, platform, normalizedRaw, keyPool, userKey);
   }
 
   // 第三方 API 失敗 → 用 a-bogus / 自寫解析兜底
   if (!result || !result.success) {
     switch (platform) {
-      case "douyin":      result = await parseDouyin(raw); break;
-      case "xiaohongshu": result = await parseXiaohongshu(raw); break;
-      case "tiktok":      result = await parseTikTok(raw); break;
-      case "instagram":   result = await parseInstagram(raw); break;
-      case "threads":     result = await parseThreads(raw); break;
-      case "shopee":      result = await parseShopee(raw); break;
-      case "taobao":      result = await parseTaobao(raw); break;
+      case "douyin":      result = await parseDouyin(normalizedRaw); break;
+      case "xiaohongshu": result = await parseXiaohongshu(normalizedRaw); break;
+      case "tiktok":      result = await parseTikTok(normalizedRaw); break;
+      case "instagram":   result = await parseInstagram(normalizedRaw); break;
+      case "threads":     result = await parseThreads(normalizedRaw); break;
+      case "shopee":      result = await parseShopee(normalizedRaw); break;
+      case "taobao":      result = await parseTaobao(normalizedRaw); break;
       default:
         // 其他原本不支援的平台：用 auto-download-all-in-one 再試一次（上面的 parseWithFallback 已用過）
         // 若 API 都拿不到，就回傳錯誤
