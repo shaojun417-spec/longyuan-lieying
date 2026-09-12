@@ -1,166 +1,220 @@
-# 龍淵裂影 🐉
+# 龍淵裂影 - 影片下載工具
 
-> 本地 AI 短影音創作工具 - 全自動生成台灣口播文案 + 台語配音 + 智能混剪
+跨平台無水印影片下載工具，部署在 Cloudflare Workers 上。
 
-## ✨ 功能特色
+## 🌐 線上服務
 
-- 🤖 **本地 AI 模型**：完全離線運作，保護隱私
-- 🎤 **台灣口音配音**：支援國語、台語等多種口音
-- ✍️ **AI 自動寫稿**：一鍵生成符合台灣文化的口播文案
-- 🎬 **智能混剪**：自動配字幕、轉場、BGM
+**網址**：https://longyuan-video.shaojun417.workers.dev
 
-## 🛠️ 技術架構
+開啟網頁 → 貼上影片網址 → 取得下載連結（完全免費，無需註冊）。
 
-- **前端**：Electron + React + TypeScript + Tailwind CSS
-- **AI 模型**：Qwen2.5 (LLM) + Piper TTS (語音合成)
-- **硬體偵測**：自動推薦適合的模型
-- **打包工具**：Vite + electron-builder
+## ✨ 支援的平台
 
-## 📦 安裝步驟
+| 平台 | 狀態 | 備註 |
+|---|---|---|
+| 抖音 | ✅（需第三方 API Key） | App 分享短網址成功率最高 |
+| 小紅書 | ✅（需第三方 API Key） | 短網址優先 |
+| TikTok | ✅（需第三方 API Key） | |
+| Instagram | ✅（需第三方 API Key） | Reel / Post |
+| Threads | ✅（需第三方 API Key） | |
+| **YouTube** | ✅（auto-download Key） | 完整支援（12+ 格式） |
+| **Facebook** | ✅（auto-download Key） | |
+| **Twitter/X** | ✅（auto-download Key） | |
+| **Bilibili** | ✅（auto-download Key） | |
+| **Pinterest / Reddit / Vimeo / 9GAG / Tumblr** | ✅（auto-download Key） | |
+| **40+ 其他平台** | ✅（auto-download Key） | 見下方說明 |
+| 蝦皮短影音 | ❌ | 需 Browser Rendering（$5/月） |
+| **淘寶 / 天貓影片** | ✅ 直接 CDN URL | 商品頁因風控無法解析；需從開發者工具複製 `.mp4` 完整網址（含 `auth_key`） |
+
+### auto-download-all-in-one 一個 Key 包打 60+ 平台
+
+提供者是 `nguyenmanhict`（RapidAPI 上同一個作者），透過 auto-download-all-in-one 服務（檔名 `auto-download-all-in-one.p.rapidapi.com`）支援：
+- **無水印下載**：TikTok, 抖音, CapCut, Hipi, 小紅書
+- **影片社群**：Facebook, Instagram, YouTube, X/Twitter, Pinterest, Threads, Bilibili, VK, Weibo 等
+- **音訊**：SoundCloud, Spotify, Apple Music 等
+- **雲端**：Box, Dropbox, Google Drive, MediaFire 等
+
+**註冊 → 訂 BASIC ($0/月, 100 次/月) → 拿 X-RapidAPI-Key**
+
+## 🏗️ 架構
+
+```
+用戶 → Worker (handleVideoInfo)
+         ↓
+      Key 池（環境變數）
+         ↓
+      ┌─→ auto-download-all-in-one (RAPIDAPI_AUTO_KEY, 60+ 平台)
+      ├─→ TikHub API（輪詢 Key 池, 5 平台）
+      ├─→ RapidAPI（輪詢 Key 池, 各別 provider）
+      ├─→ 用戶自帶 Key（userKey 參數）
+      └─→ 自寫解析（a-bogus 兜底）
+         ↓
+      影片 URL → 用戶
+```
+
+### 解析優先順序（從上往下嘗試）
+
+1. **auto-download-all-in-one** — 60+ 平台，一個 Key 通殺（推薦）
+2. 用戶自帶 Key（userKey）
+3. TikHub Key 池輪詢
+4. RapidAPI Key 池輪詢（其他 provider）
+5. 自寫解析（抖音、小紅書、IG、Threads、蝦皮）
+
+### Key 池設計
+
+- 支援多 Key 輪詢（`TIKHUB_KEYS=key1,key2,key3`）
+- 失敗的 Key 自動跳過（連續 3 次失敗暫停使用）
+- 用戶可在請求中帶 `userKey` 自帶 Key（不消耗你的額度）
+- 每個 Key 的健康度、月用量持久化到 KV
+
+## 🔑 設定環境變數（Cloudflare Dashboard）
+
+進入 **Workers & Pages → longyuan-video → Settings → Variables**
+
+### auto-download-all-in-one (推薦，一次包打 60+ 平台)
+
+```
+RAPIDAPI_AUTO_KEY = <your rapidapi key>
+```
+
+或環境變數 `RAPIDAPI_AUTO_KEYS` 可放多個 Key（逗號分隔輪詢）。
+
+**取得方式**：[https://rapidapi.com/nguyenmanhict-MuTUtGWD7K/api/auto-download-all-in-one/pricing](https://rapidapi.com/nguyenmanhict-MuTUtGWD7K/api/auto-download-all-in-one/pricing)
+- BASIC 方案：**免費 $0/月，100 次/月**
+
+### TikHub
+```
+TIKHUB_KEYS = your_key_1,your_key_2,your_key_3
+```
+
+單 Key：
+```
+TIKHUB_KEY = your_single_key
+```
+
+註冊：https://tikhub.io（免費 500 次/月）
+
+### 其他 RapidAPI Provider
+```
+RAPIDAPI_KEYS = host1.com:key1,host2.com:key2
+```
+
+或單個：
+```
+RAPIDAPI_KEY = your_rapidapi_key
+RAPIDAPI_HOST = your-default-host.p.rapidapi.com
+```
+
+註冊：https://rapidapi.com
+
+## 🚀 部署
 
 ```bash
-# 1. 克隆專案
-git clone https://github.com/shaojun417/longyuan-lieying.git
-cd longyuan-lieying
-
-# 2. 安裝依賴
-npm install
-
-# 3. 開發模式
-npm run dev
-
-# 4. 打包成 .exe
-npm run build
+cd C:\Projects\龍淵裂影\workers\src
+python deploy.py
 ```
 
-## 🖥️ 系統需求
-
-- **作業系統**：Windows 10/11（macOS、Linux 開發中）
-- **RAM**：建議 8GB 以上
-- **硬碟空間**：需要 5GB+ 給 AI 模型
-- **網路**：首次啟動需要下載 AI 模型
-
-## 📂 專案結構
-
-```
-electron/
-├── src/
-│   ├── main/              # Electron 主程序
-│   │   ├── index.ts       # 主入口
-│   │   ├── hardware-detect.ts   # 硬體偵測
-│   │   ├── model-manager.ts     # 模型管理
-│   │   ├── first-run.ts         # 首次啟動流程
-│   │   └── narration/           # 文案生成（階段 2）
-│   │       ├── prompt-templates.ts   # Prompt 範本
-│   │       ├── similarity-check.ts   # 不相似性檢查
-│   │       ├── llm-engine.ts         # node-llama-cpp 封裝
-│   │       ├── script-writer.ts      # 主邏輯
-│   │       └── script-handlers.ts     # IPC handlers
-│   ├── preload/           # 預載腳本（IPC 橋接）
-│   │   └── index.ts
-│   ├── renderer/          # React UI
-│   │   ├── App.tsx
-│   │   └── pages/
-│   │       ├── FirstRunScreen.tsx
-│   │       └── NarrationScreen.tsx  # 文案生成 UI
-│   ├── shared/            # 共用型別
-│   │   └── types.ts
-│   └── resources/             # 圖片、圖標、BGM
-└── models/                # AI 模型（不下載到 git）
-```
-
-## 🎯 開發進度
-
-查看 [PLAN.md](PLAN.md) 了解完整的開發計劃。
-
-### ✅ 已完成
-- [x] 專案初始化
-- [x] Electron + React + TypeScript 架構
-- [x] 硬體偵測模組
-- [x] 模型管理器
-- [x] 首次啟動流程
-- [x] 首次啟動 UI
-- [x] **環境驗證**（npm install / vite build / Electron 三進程啟動）
-- [x] **修正 vite-plugin-electron-renderer 導致 electron-log 變成 renderer 版的 bug**
-- [x] **修正模型管理器：殘留檔（< 預期大小 95%）會被誤判為已下載的 bug**
-- [x] **AI 文案生成器**（LLM + 不相似性檢查 + React UI + IPC）
-  - 台灣口吻 prompt 範本（直接說話聊天風格）
-  - node-llama-cpp 單例 Lazy Loading
-  - 簡轉繁字典（180+ 字）+ Levenshtein 不相似性檢查
-  - 自動重試（最多 3 次，太相似就重生）
-  - 5 種不同切入點（痛點/故事/反轉/情境/數字）
-
-### 🚧 開發中
-- [ ] AI 文案生成器（E2E 實測，需下載 4.9GB 模型）
-- [ ] TTS 語音合成
-- [ ] 影片素材管理
-- [ ] 混剪引擎
-
-## 🔧 開發指令速查
-
-| 指令 | 用途 |
-|------|------|
-| `npm install` | 安裝依賴（含 Electron 二進位檔） |
-| `npm run dev` 或 `npx vite` | 啟動開發模式（熱重載） |
-| `npx tsc --noEmit` | 型別檢查（renderer） |
-| `npx tsc --noEmit -p tsconfig.node.json` | 型別檢查（main + preload） |
-| `npm run build` | 打包成 production 版本 |
-| `npm run electron:build` | 打包成 .exe |
-
-## ⚠️ 已知陷阱與解法
-
-### 1. vite-plugin-electron-renderer 會把 electron-log 換成 renderer 版
-
-**症狀**：主進程啟動時報錯 `Cannot set properties of undefined (setting 'level')`，出現在 `dist-electron/main/index.js:1006:27`。
-
-**原因**：`vite-plugin-electron-renderer` 預設會把 Node module（包括 `electron-log`）在主進程的 require 替換成瀏覽器版的 polyfill，但 polyfill 沒有 `file` transport，所以 `logger.transports.file.level` 會 undefined。
-
-**解法**：在 `vite.config.ts` 的 main bundle `rollupOptions.external` 明確加入 `electron-log`，強制 main process 用 Node 版的 electron-log（從 `node_modules` 載入，有 `file` transport）。
-
-```ts
-// vite.config.ts
-external: [
-  'electron',
-  'electron-log',   // ← 關鍵！不要讓 renderer plugin 接手
-  'node-llama-cpp',
-  'systeminformation',
-],
-```
-
-同時也建議**不要使用 `vite-plugin-electron-renderer`**，因為它的 polyfill 機制在 main process 也會干擾，直接拿掉即可。
-
-### 2. 模型管理器會把殘留檔（未下載完的檔案）當成「已下載」
-
-**症狀**：模型下載中途中斷（手動關閉、網路斷線），重啟後看到「模型已存在，不需要下載」，但實際檔案大小只有幾 KB，無法載入使用。
-
-**原因**：原本用 `fs.existsSync()` 判斷模型是否已下載，但只要檔案存在就會回傳 true。
-
-**解法**：
-- 改用「檔案存在 + 大小 >= 預期的 95%」判斷（容忍 server 報告 size 的微小誤差）
-- 啟動時呼叫 `modelManager.cleanupIncompleteModels()`，自動清掉所有殘留檔
-
-```ts
-// 私有 helper：完整檢查
-private isModelFileComplete(modelName: string, expectedSize: number): boolean {
-  const modelPath = this.getModelPath(modelName);
-  if (!fs.existsSync(modelPath)) return false;
-  const stats = fs.statSync(modelPath);
-  return stats.size >= expectedSize * 0.95;
+或在 `deploy.py` 內編輯 `SECRETS` 區塊，加上你想設定的 Key：
+```python
+SECRETS = {
+    "RAPIDAPI_AUTO_KEY": "你的_RapidAPI_Key",
+    "TIKHUB_KEYS": "tikhub_key_1,tikhub_key_2",
+    "ADMIN_TOKEN": "your_admin_token",
 }
 ```
 
-### 3. main process 的 vite watch 不會自動重啟
+## ⚠️ 已知問題
 
-**症狀**：用 `npm run dev`（vite-only）時，改了 `electron/src/main/index.ts`，但主進程不會重啟，必須手動 `Ctrl+C` 再重啟。
+### auto-download-all-in-one 在 Worker 環境下會被 BIC 阻擋
 
-**原因**：`vite-plugin-electron` 的 HMR 只在它自己啟動時運作，如果只用 `vite`（沒有透過 plugin）就不會觸發。
+RapidAPI 端 Cloudflare 的 **Browser Integrity Check** (BIC) 對 Cloudflare Workers 的 `fetch` 會回 `403 error code: 1010`。
 
-**解法**：直接用 `npm run dev`（已經改成 `build:all && electron .`），或對 `electron/src/main/**` 改檔後手動重啟。
+**繞過方法**：
+1. ✅ 暫時用 TikHub（5 平台）或自寫解析
+2. ❌ 從 Worker 發 fetch 偽裝瀏覽器 — 不可行（BIC 看 TLS 指紋，不是 headers）
+3. ✅ 用 RapidAPI 的前端 PlayGround/Postman 直接呼叫 → 前端使用者自己的瀏覽器有瀏覽器身份
+4. ✅ Cloudflare Browser Rendering API（付費）
 
-## 📄 授權
+## 📁 檔案結構
 
-MIT License - 詳見 [LICENSE](LICENSE) 檔案
+```
+workers/src/
+├── index.js              # 主程式（含前端 HTML + 5 平台解析）
+├── deploy_v2.py          # 部署腳本
+├── test_keys.py          # 測試腳本
+├── bundle-worker.js      # 舊版（保留）
+└── ...
+```
 
-## 👨‍💻 作者
+## 🧪 測試
 
-[shaojun417](https://github.com/shaojun417)
+```bash
+python test_keys.py
+```
+
+## 📡 API
+
+### POST /api/video-info
+
+**請求**：
+```json
+{
+  "url": "https://v.douyin.com/xxxxxx/",
+  "userKey": "optional_user_tikhub_key"
+}
+```
+
+**回應**：
+```json
+{
+  "success": true,
+  "url": "https://...",
+  "title": "影片標題",
+  "thumbnail": "https://...",
+  "duration": 15000,
+  "platform": "douyin",
+  "uploader": "作者",
+  "source": "tikhub"
+}
+```
+
+### GET /api/dl-stream
+
+代理下載影片（繞過 referer 限制）。
+
+```
+GET /api/dl-stream?url=<video_url>&filename=<name>.mp4
+```
+
+## 💡 使用建議
+
+1. **剛開始**：先用 1 個 TikHub Key 試用（500 次/月）
+2. **用量大**：邀請朋友註冊（每邀請 1 人 +500 次/月）
+3. **不想付費**：讓用戶自帶 Key
+4. **商業用**：付費 $5/月（10000 次/月）
+
+## 🔒 注意事項
+
+- 第三方 API Key 切勿提交到 git
+- 大量請求時 Worker 會自動分散到不同 Key
+- 失敗的 Key 會暫時跳過，恢復後自動重試
+
+---
+
+## 已知問題
+
+### 抖音
+
+- 2026 年抖音 bdms 升級後，自寫 a-bogus 簽名無法繞過
+- **必須用 TikHub 或 RapidAPI 才能成功解析**
+- App 分享的短網址（v.douyin.com）成功率最高
+
+### Instagram / Threads
+
+- 需要登入的內容無法解析
+- 公開 Reel / Post 成功率 80%+
+
+### 蝦皮
+
+- Free 帳號下完全無法解析
+- 需升 Cloudflare Paid + Browser Rendering
